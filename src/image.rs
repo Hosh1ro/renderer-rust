@@ -1,17 +1,16 @@
-use crate::utils::{self, read_n_bytes, Result};
+use crate::utils;
 use std::{
     fs::File,
     io::{BufReader, BufWriter, Write},
     path::Path,
-    slice::Windows,
 };
 
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
 }
 
 pub struct Image {
@@ -54,7 +53,7 @@ impl Image {
         self.height
     }
 
-    pub fn set_color(&mut self, x: u32, y: u32, color: Color) -> Result<()> {
+    pub fn set_color(&mut self, x: u32, y: u32, color: Color) -> utils::Result<()> {
         if x >= self.width || y >= self.height {
             return Err("illegal arguments".into());
         }
@@ -63,7 +62,7 @@ impl Image {
         Ok(())
     }
 
-    pub fn get_color(&self, x: u32, y: u32) -> Result<Color> {
+    pub fn get_color(&self, x: u32, y: u32) -> utils::Result<Color> {
         if x >= self.width || y >= self.height {
             return Err("illegal arguments".into());
         }
@@ -162,7 +161,7 @@ impl Image {
         }
     }
 
-    fn rle_decode(&mut self, reader: &mut BufReader<File>, pixel_depth: u32) -> Result<()> {
+    fn rle_decode(&mut self, reader: &mut BufReader<File>, pixel_depth: u32) -> utils::Result<()> {
         let total_pixel = (self.width * self.height) as usize;
         let mut current_pixel = 0usize;
         let get_color = |data: &Vec<u8>| match pixel_depth {
@@ -193,12 +192,12 @@ impl Image {
         };
 
         loop {
-            let mut packet = read_n_bytes(reader, 1)?[0];
+            let mut packet = utils::read_n_bytes(reader, 1)?[0];
 
             // repeated data packets if highest bit is 1
             if packet >= 128 {
                 packet -= 127;
-                let pixel_value = read_n_bytes(reader, (pixel_depth >> 3) as u64)?;
+                let pixel_value = utils::read_n_bytes(reader, (pixel_depth >> 3) as u64)?;
                 let color = get_color(&pixel_value);
 
                 for _ in 0..packet {
@@ -216,7 +215,7 @@ impl Image {
                         return Err("wrong pixel numbers".into());
                     }
 
-                    let pixel_value = read_n_bytes(reader, (pixel_depth >> 3) as u64)?;
+                    let pixel_value = utils::read_n_bytes(reader, (pixel_depth >> 3) as u64)?;
                     let color = get_color(&pixel_value);
                     self.data[current_pixel] = color;
                     current_pixel += 1;
@@ -229,7 +228,7 @@ impl Image {
         }
     }
 
-    pub fn read_from_file(path: &Path) -> Result<Self> {
+    pub fn read_from_file(path: &Path) -> utils::Result<Self> {
         let file = File::open(&path)?;
         let mut reader = BufReader::new(file);
 
@@ -277,7 +276,7 @@ impl Image {
         return Ok(image);
     }
 
-    pub fn write_to_file(&self, path: &Path) -> Result<()> {
+    pub fn write_to_file(&self, path: &Path) -> utils::Result<()> {
         let file = File::create(&path)?;
         let mut writer = BufWriter::new(file);
 

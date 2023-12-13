@@ -1,2 +1,4 @@
 pub mod image;
-pub(self) mod utils;
+pub mod model;
+pub mod math;
+pub mod utils;
