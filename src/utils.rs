@@ -1,5 +1,6 @@
-use core::{mem, slice};
 use std::{error::Error, io::Read, io::Write};
+
+use core::{mem, slice};
 
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
