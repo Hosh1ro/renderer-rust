@@ -1,4 +1,4 @@
-use std::{cmp, path::Path, vec};
+use std::{cmp, f64::consts::PI, path::Path, vec};
 
 use librender::{
     math::{
@@ -298,6 +298,49 @@ impl<'a> Shader for ShadowShader<'a> {
     }
 }
 
+fn max_horizon_angle(zbuffer: &Vec<f64>, point: Vec2f64, dir: Vec2f64) -> f64 {
+    let point_z = zbuffer[(point[0] as u32 + point[1] as u32 * WIDTH) as usize];
+
+    let mut res = 0f64;
+    let mut step = 0f64;
+    let mut max_dis = 0f64;
+    while step < 10f64 {
+        let sample_point = &point + &(&dir * step);
+        let sample_point_x = sample_point[0] as i32;
+        let sample_point_y = sample_point[1] as i32;
+
+        if sample_point_x < 0
+            || sample_point_x as u32 >= WIDTH
+            || sample_point_y < 0
+            || sample_point_y as u32 >= HEIGHT
+        {
+            break;
+        }
+
+        let dis = (&sample_point - &point).norm_l2();
+        if dis < 1f64 {
+            step = step + 1.0;
+            continue;
+        }
+        let (sample_point_x, sample_point_y) = (sample_point_x as u32, sample_point_y as u32);
+        let sample_point_z = zbuffer[(sample_point_x + sample_point_y * WIDTH) as usize];
+        let sample_angle = ((point_z - sample_point_z) / dis).atan();
+        if point_z - sample_point_z > 1e-1 {
+            step = step + 1.0;
+            continue;
+        }
+
+        if sample_angle > res {
+            res = sample_angle;
+            max_dis = dis;
+        }
+
+        step = step + 1.0;
+    }
+
+    res * (1f64 - max_dis / 10f64)
+}
+
 fn main() {
     let mut frame = texture::Texture::new(WIDTH, HEIGHT);
     let mut shadow_frame = texture::Texture::new(WIDTH_SHADOW, HEIGHT_SHADOW);
@@ -364,6 +407,32 @@ fn main() {
     shader.set_diffuse_map(Some(&diffuse_map));
     shader.set_specular_map(Some(&specular_map));
     shader.run_once(&mut zbuffer, &mut frame);
+
+    for x in 0..WIDTH {
+        for y in 0..HEIGHT {
+            if zbuffer[(x + y * WIDTH) as usize] > 1e5 {
+                continue;
+            }
+
+            let mut ao = 0f64;
+            let mut alpha = 0f64;
+
+            let point = Vec2f64::new_from_vec(&vec![x as f64, y as f64]);
+            for _ in 0..8 {
+                let dir = Vec2f64::new_from_vec(&vec![alpha.cos(), alpha.sin()]);
+                ao += PI / 2.0 - max_horizon_angle(&zbuffer, point, dir);
+                alpha += PI / 4.0;
+            }
+
+            ao /= (PI / 2.0) * 8.0;
+            ao = ao.powf(50f64);
+            let mut color = frame.get_color(x, y).unwrap();
+            color.r = (color.r as f64 * ao) as u8;
+            color.g = (color.g as f64 * ao) as u8;
+            color.b = (color.b as f64 * ao) as u8;
+            frame.set_color(x, y, color).unwrap();
+        }
+    }
 
     texture::tga::write_to_file(&frame, Path::new("result.tga"), true).unwrap();
 }
