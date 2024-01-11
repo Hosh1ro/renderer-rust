@@ -1,172 +1,127 @@
-use std::{fmt::Debug, ops};
+use std::{fmt::Debug, ops, simd::SimdElement};
 
-use super::vector::Vector;
+use super::vector::{Vec2f32, Vec3f32, Vec4f32, Vector};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Matrix<T, const N_ROW: usize, const N_COL: usize>([Vector<T, N_COL>; N_ROW])
 where
-    T: Default + Debug + Copy;
+    T: Default + Debug + Copy + SimdElement;
 
-impl<T, const N_ROW: usize, const N_COL: usize> ops::Index<usize> for Matrix<T, N_ROW, N_COL>
-where
-    T: Default + Debug + Copy,
-{
-    type Output = Vector<T, N_COL>;
+type Matrix2f32 = Matrix<f32, 2, 2>;
+type Matrix2f64 = Matrix<f64, 2, 2>;
+type Matrix3f32 = Matrix<f32, 3, 3>;
+type Matrix3f64 = Matrix<f64, 3, 3>;
+type Matrix4f32 = Matrix<f32, 4, 4>;
+type Matrix4f64 = Matrix<f64, 4, 4>;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        return &self.0[index];
-    }
-}
+impl ops::Add for &Matrix4f32 {
+    type Output = Matrix4f32;
 
-impl<T, const N_ROW: usize, const N_COL: usize> ops::IndexMut<usize> for Matrix<T, N_ROW, N_COL>
-where
-    T: Default + Debug + Copy,
-{
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        return &mut self.0[index];
-    }
-}
-
-impl<T, const N_ROW: usize, const N_COL: usize> Matrix<T, N_ROW, N_COL>
-where
-    T: Default + Debug + Copy,
-{
-    pub fn new() -> Self {
-        Self([Vector::<T, N_COL>::new(); N_ROW])
-    }
-
-    pub fn transpose(&self) -> Matrix<T, N_COL, N_ROW> {
-        let mut output = Matrix::<T, N_COL, N_ROW>::new();
-        for i in 0..N_COL {
-            output[i] = self.get_col(i)
-        }
-        output
-    }
-
-    pub fn set_col(&mut self, j: usize, col: &Vector<T, N_ROW>) {
-        for i in 0..N_ROW {
-            self[i][j] = col[i]
-        }
-    }
-
-    pub fn get_col(&self, j: usize) -> Vector<T, N_ROW> {
-        let mut col = Vector::new();
-        for i in 0..N_ROW {
-            col[i] = self[i][j]
-        }
-        col
-    }
-}
-
-impl<T, const N_ROW: usize, const N_COL: usize> ops::Add for &Matrix<T, N_ROW, N_COL>
-where
-    T: Default + Debug + Copy + ops::Add<Output = T>,
-{
-    type Output = Matrix<T, N_ROW, N_COL>;
-
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
-        let mut output = Matrix::<T, N_ROW, N_COL>::new();
-        for i in 0..N_ROW {
-            output[i] = &self[i] + &rhs[i];
-        }
+        let mut output = Matrix4f32::new();
+
+        output[0] = &self[0] + &rhs[0];
+        output[1] = &self[1] + &rhs[1];
+        output[2] = &self[2] + &rhs[2];
+        output[3] = &self[3] + &rhs[3];
+
         output
     }
 }
 
-impl<T, const N_ROW: usize, const N_COL: usize> ops::Sub for &Matrix<T, N_ROW, N_COL>
-where
-    T: Default + Debug + Copy + ops::Sub<Output = T>,
-{
-    type Output = Matrix<T, N_ROW, N_COL>;
+impl ops::Sub for &Matrix4f32 {
+    type Output = Matrix4f32;
 
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
-        let mut output = Matrix::<T, N_ROW, N_COL>::new();
-        for i in 0..N_ROW {
-            output[i] = &self[i] - &rhs[i];
-        }
+        let mut output = Matrix4f32::new();
+
+        output[0] = &self[0] - &rhs[0];
+        output[1] = &self[1] - &rhs[1];
+        output[2] = &self[2] - &rhs[2];
+        output[3] = &self[3] - &rhs[3];
+
         output
     }
 }
 
-impl<T, const N_ROW_A: usize, const N_COL_A: usize, const N_COL_B: usize>
-    ops::Mul<&Matrix<T, N_COL_A, N_COL_B>> for &Matrix<T, N_ROW_A, N_COL_A>
-where
-    T: Default + Debug + Copy + ops::Mul<Output = T> + ops::Add<Output = T>,
-{
-    type Output = Matrix<T, N_ROW_A, N_COL_B>;
+impl ops::Mul for &Matrix4f32 {
+    type Output = Matrix4f32;
 
-    fn mul(self, rhs: &Matrix<T, N_COL_A, N_COL_B>) -> Self::Output {
-        let mut output = Matrix::<T, N_ROW_A, N_COL_B>::new();
-        for i in 0..N_ROW_A {
-            for j in 0..N_COL_B {
-                for k in 0..N_COL_A {
-                    output[i][j] = output[i][j] + self[i][k] * rhs[k][j];
-                }
-            }
+    #[inline(always)]
+    fn mul(self, rhs: &Matrix4f32) -> Self::Output {
+        let mut output = Matrix4f32::new();
+        let b_col = [
+            rhs.get_col(0),
+            rhs.get_col(1),
+            rhs.get_col(2),
+            rhs.get_col(3),
+        ];
+
+        for (i, row) in self.0.iter().enumerate() {
+            output[i][0] = row * &b_col[0];
+            output[i][1] = row * &b_col[1];
+            output[i][2] = row * &b_col[2];
+            output[i][3] = row * &b_col[3];
         }
+
         output
     }
 }
 
-impl<T, const N_ROW: usize, const N_COL: usize> ops::Mul<&Vector<T, N_COL>>
-    for &Matrix<T, N_ROW, N_COL>
-where
-    T: Default + Debug + Copy + ops::Mul<Output = T> + ops::Add<Output = T>,
-{
-    type Output = Vector<T, N_ROW>;
+impl ops::Mul<&Vec4f32> for &Matrix4f32 {
+    type Output = Vec4f32;
 
-    fn mul(self, rhs: &Vector<T, N_COL>) -> Self::Output {
-        let mut output = Vector::<T, N_ROW>::new();
-        for i in 0..N_ROW {
-            output[i] = &self[i] * rhs;
-        }
+    #[inline(always)]
+    fn mul(self, rhs: &Vec4f32) -> Self::Output {
+        let mut output = Vec4f32::new();
+
+        output[0] = &self[0] * rhs;
+        output[1] = &self[1] * rhs;
+        output[2] = &self[2] * rhs;
+        output[3] = &self[3] * rhs;
+
         output
     }
 }
 
-impl<T, const N_ROW: usize, const N_COL: usize> ops::Mul<T> for &Matrix<T, N_ROW, N_COL>
-where
-    T: Default + Debug + Copy + ops::Mul<Output = T>,
-{
-    type Output = Matrix<T, N_ROW, N_COL>;
+impl ops::Mul<f32> for &Matrix4f32 {
+    type Output = Matrix4f32;
 
-    fn mul(self, rhs: T) -> Self::Output {
-        let mut output = Matrix::<T, N_ROW, N_COL>::new();
-        for i in 0..N_ROW {
-            output[i] = &self[i] * rhs;
-        }
+    #[inline(always)]
+    fn mul(self, rhs: f32) -> Self::Output {
+        let mut output = Matrix4f32::new();
+
+        output[0] = &self[0] * rhs;
+        output[1] = &self[1] * rhs;
+        output[2] = &self[2] * rhs;
+        output[3] = &self[3] * rhs;
+
         output
     }
 }
 
-impl<T, const N_ROW: usize, const N_COL: usize> ops::Div<T> for &Matrix<T, N_ROW, N_COL>
-where
-    T: Default + Debug + Copy + ops::Div<Output = T>,
-{
-    type Output = Matrix<T, N_ROW, N_COL>;
+impl ops::Div<f32> for &Matrix4f32 {
+    type Output = Matrix4f32;
 
-    fn div(self, rhs: T) -> Self::Output {
-        let mut output = Matrix::<T, N_ROW, N_COL>::new();
-        for i in 0..N_ROW {
-            output[i] = &self[i] / rhs;
-        }
+    #[inline(always)]
+    fn div(self, rhs: f32) -> Self::Output {
+        let mut output = Matrix4f32::new();
+
+        output[0] = &self[0] / rhs;
+        output[1] = &self[1] / rhs;
+        output[2] = &self[2] / rhs;
+        output[3] = &self[3] / rhs;
+
         output
     }
 }
 
-impl<T> Matrix<T, 4, 4>
-where
-    T: Default
-        + Debug
-        + Copy
-        + ops::Add<Output = T>
-        + ops::Sub<Output = T>
-        + ops::Mul<Output = T>
-        + ops::Div<Output = T>
-        + ops::Neg<Output = T>,
-{
-    pub fn minor(&self, i: usize, j: usize) -> Matrix<T, 3, 3> {
-        let mut output = Matrix::<T, 3, 3>::new();
+impl Matrix4f32 {
+    #[inline(always)]
+    pub fn minor(&self, i: usize, j: usize) -> Matrix3f32 {
+        let mut output = Matrix3f32::new();
         for i_ in 0..3 {
             for j_ in 0..3 {
                 output[i_][j_] = if i_ < i {
@@ -187,7 +142,8 @@ where
         output
     }
 
-    pub fn cofactor(&self, i: usize, j: usize) -> T {
+    #[inline(always)]
+    pub fn cofactor(&self, i: usize, j: usize) -> f32 {
         let res = self.minor(i, j).det();
         if (i + j) & 1 == 0 {
             res
@@ -196,16 +152,18 @@ where
         }
     }
 
-    pub fn det(&self) -> T {
-        let mut res: T = Default::default();
+    #[inline(always)]
+    pub fn det(&self) -> f32 {
+        let mut res = Default::default();
         for j in 0..4 {
             res = res + self[0][j] * self.cofactor(0, j);
         }
         res
     }
 
-    pub fn adj(&self) -> Matrix<T, 4, 4> {
-        let mut output = Matrix::<T, 4, 4>::new();
+    #[inline(always)]
+    pub fn adj(&self) -> Matrix4f32 {
+        let mut output = Matrix4f32::new();
         for i in 0..4 {
             for j in 0..4 {
                 output[i][j] = self.cofactor(i, j);
@@ -214,24 +172,211 @@ where
         output.transpose()
     }
 
-    pub fn inv(&self) -> Matrix<T, 4, 4> {
+    #[inline(always)]
+    pub fn inv(&self) -> Matrix4f32 {
         &self.adj() / self.det()
     }
 }
 
-impl<T> Matrix<T, 3, 3>
-where
-    T: Default
-        + Debug
-        + Copy
-        + ops::Add<Output = T>
-        + ops::Sub<Output = T>
-        + ops::Mul<Output = T>
-        + ops::Div<Output = T>
-        + ops::Neg<Output = T>,
-{
-    pub fn minor(&self, i: usize, j: usize) -> Matrix<T, 2, 2> {
-        let mut output = Matrix::<T, 2, 2>::new();
+impl ops::Add for &Matrix2f32 {
+    type Output = Matrix2f32;
+
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut output = Matrix2f32::new();
+
+        output[0] = &self[0] + &rhs[0];
+        output[1] = &self[1] + &rhs[1];
+
+        output
+    }
+}
+
+impl ops::Sub for &Matrix2f32 {
+    type Output = Matrix2f32;
+
+    #[inline(always)]
+    fn sub(self, rhs: Self) -> Self::Output {
+        let mut output = Matrix2f32::new();
+
+        output[0] = &self[0] - &rhs[0];
+        output[1] = &self[1] - &rhs[1];
+
+        output
+    }
+}
+
+impl ops::Mul for &Matrix2f32 {
+    type Output = Matrix2f32;
+
+    #[inline(always)]
+    fn mul(self, rhs: &Matrix2f32) -> Self::Output {
+        let mut output = Matrix2f32::new();
+        let b_col = [rhs.get_col(0), rhs.get_col(1)];
+
+        for (i, row) in self.0.iter().enumerate() {
+            output[i][0] = row * &b_col[0];
+            output[i][1] = row * &b_col[1];
+        }
+
+        output
+    }
+}
+
+impl ops::Mul<&Vec2f32> for &Matrix2f32 {
+    type Output = Vec2f32;
+
+    #[inline(always)]
+    fn mul(self, rhs: &Vec2f32) -> Self::Output {
+        let mut output = Vec2f32::new();
+
+        output[0] = &self[0] * rhs;
+        output[1] = &self[1] * rhs;
+
+        output
+    }
+}
+
+impl ops::Mul<f32> for &Matrix2f32 {
+    type Output = Matrix2f32;
+
+    #[inline(always)]
+    fn mul(self, rhs: f32) -> Self::Output {
+        let mut output = Matrix2f32::new();
+
+        output[0] = &self[0] * rhs;
+        output[1] = &self[1] * rhs;
+
+        output
+    }
+}
+
+impl ops::Div<f32> for &Matrix2f32 {
+    type Output = Matrix2f32;
+
+    #[inline(always)]
+    fn div(self, rhs: f32) -> Self::Output {
+        let mut output = Matrix2f32::new();
+
+        output[0] = &self[0] / rhs;
+        output[1] = &self[1] / rhs;
+
+        output
+    }
+}
+
+impl Matrix2f32 {
+    #[inline(always)]
+    pub fn det(&self) -> f32 {
+        self[0][0] * self[1][1] - self[0][1] * self[1][0]
+    }
+
+    #[inline(always)]
+    pub fn inv(&self) -> Matrix2f32 {
+        let mut output = Matrix2f32::new();
+        (output[0][0], output[0][1]) = (self[1][1], -self[0][1]);
+        (output[1][0], output[1][1]) = (-self[1][0], self[0][0]);
+        output
+    }
+}
+
+impl ops::Add for &Matrix3f32 {
+    type Output = Matrix3f32;
+
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut output = Matrix3f32::new();
+
+        output[0] = &self[0] + &rhs[0];
+        output[1] = &self[1] + &rhs[1];
+        output[2] = &self[1] + &rhs[2];
+
+        output
+    }
+}
+
+impl ops::Sub for &Matrix3f32 {
+    type Output = Matrix3f32;
+
+    #[inline(always)]
+    fn sub(self, rhs: Self) -> Self::Output {
+        let mut output = Matrix3f32::new();
+
+        output[0] = &self[0] - &rhs[0];
+        output[1] = &self[1] - &rhs[1];
+        output[2] = &self[1] - &rhs[2];
+
+        output
+    }
+}
+
+impl ops::Mul for &Matrix3f32 {
+    type Output = Matrix3f32;
+
+    #[inline(always)]
+    fn mul(self, rhs: &Matrix3f32) -> Self::Output {
+        let mut output = Matrix3f32::new();
+        let b_col = [rhs.get_col(0), rhs.get_col(1), rhs.get_col(2)];
+
+        for (i, row) in self.0.iter().enumerate() {
+            output[i][0] = row * &b_col[0];
+            output[i][1] = row * &b_col[1];
+            output[i][2] = row * &b_col[2];
+        }
+
+        output
+    }
+}
+
+impl ops::Mul<&Vec3f32> for &Matrix3f32 {
+    type Output = Vec3f32;
+
+    #[inline(always)]
+    fn mul(self, rhs: &Vec3f32) -> Self::Output {
+        let mut output = Vec3f32::new();
+
+        output[0] = &self[0] * rhs;
+        output[1] = &self[1] * rhs;
+        output[2] = &self[2] * rhs;
+
+        output
+    }
+}
+
+impl ops::Mul<f32> for &Matrix3f32 {
+    type Output = Matrix3f32;
+
+    #[inline(always)]
+    fn mul(self, rhs: f32) -> Self::Output {
+        let mut output = Matrix3f32::new();
+
+        output[0] = &self[0] * rhs;
+        output[1] = &self[1] * rhs;
+        output[2] = &self[2] * rhs;
+
+        output
+    }
+}
+
+impl ops::Div<f32> for &Matrix3f32 {
+    type Output = Matrix3f32;
+
+    #[inline(always)]
+    fn div(self, rhs: f32) -> Self::Output {
+        let mut output = Matrix3f32::new();
+
+        output[0] = &self[0] / rhs;
+        output[1] = &self[1] / rhs;
+        output[2] = &self[2] / rhs;
+
+        output
+    }
+}
+
+impl Matrix3f32 {
+    #[inline(always)]
+    pub fn minor(&self, i: usize, j: usize) -> Matrix2f32 {
+        let mut output = Matrix2f32::new();
         for i_ in 0..2 {
             for j_ in 0..2 {
                 output[i_][j_] = if i_ < i {
@@ -252,7 +397,8 @@ where
         output
     }
 
-    pub fn cofactor(&self, i: usize, j: usize) -> T {
+    #[inline(always)]
+    pub fn cofactor(&self, i: usize, j: usize) -> f32 {
         let res = self.minor(i, j).det();
         if (i + j) & 1 == 0 {
             res
@@ -261,7 +407,8 @@ where
         }
     }
 
-    pub fn det(&self) -> T {
+    #[inline(always)]
+    pub fn det(&self) -> f32 {
         self[0][0] * self[1][1] * self[2][2]
             + self[0][1] * self[1][2] * self[2][0]
             + self[0][2] * self[1][0] * self[2][1]
@@ -270,8 +417,9 @@ where
             - self[0][2] * self[1][1] * self[2][0]
     }
 
-    pub fn adj(&self) -> Matrix<T, 3, 3> {
-        let mut output = Matrix::<T, 3, 3>::new();
+    #[inline(always)]
+    pub fn adj(&self) -> Matrix3f32 {
+        let mut output = Matrix3f32::new();
         for i in 0..3 {
             for j in 0..3 {
                 output[i][j] = self.cofactor(i, j);
@@ -280,80 +428,81 @@ where
         output.transpose()
     }
 
-    pub fn inv(&self) -> Matrix<T, 3, 3> {
+    #[inline(always)]
+    pub fn inv(&self) -> Matrix3f32 {
         &self.adj() / self.det()
-    }
-}
-
-impl<T> Matrix<T, 2, 2>
-where
-    T: Default
-        + Debug
-        + Copy
-        + ops::Add<Output = T>
-        + ops::Sub<Output = T>
-        + ops::Mul<Output = T>
-        + ops::Div<Output = T>
-        + ops::Neg<Output = T>,
-{
-    pub fn minor(&self, i: usize, j: usize) -> Matrix<T, 1, 1> {
-        let mut output = Matrix::<T, 1, 1>::new();
-        for i_ in 0..1 {
-            for j_ in 0..1 {
-                output[i_][j_] = if i_ < i {
-                    if j_ < j {
-                        self[i_][j_]
-                    } else {
-                        self[i_][j_ + 1]
-                    }
-                } else {
-                    if j_ < j {
-                        self[i_ + 1][j_]
-                    } else {
-                        self[i_ + 1][j_ + 1]
-                    }
-                }
-            }
-        }
-        output
-    }
-
-    pub fn cofactor(&self, i: usize, j: usize) -> T {
-        let res = self.minor(i, j).det();
-        if (i + j) & 1 == 0 {
-            res
-        } else {
-            -res
-        }
-    }
-
-    pub fn det(&self) -> T {
-        self[0][0] * self[1][1] - self[0][1] * self[1][0]
-    }
-
-    pub fn adj(&self) -> Matrix<T, 2, 2> {
-        let mut output = Matrix::<T, 2, 2>::new();
-        for i in 0..2 {
-            for j in 0..2 {
-                output[i][j] = self.cofactor(i, j);
-            }
-        }
-        output.transpose()
-    }
-
-    pub fn inv(&self) -> Matrix<T, 2, 2> {
-        let mut output = Matrix::<T, 2, 2>::new();
-        (output[0][0], output[0][1]) = (self[1][1], -self[0][1]);
-        (output[1][0], output[1][1]) = (-self[1][0], self[0][0]);
-        output
     }
 }
 
 impl<T> Matrix<T, 1, 1>
 where
-    T: Default + Debug + Copy + ops::Mul<Output = T> + ops::Add<Output = T> + ops::Neg,
+    T: Default
+        + Debug
+        + Copy
+        + SimdElement
+        + ops::Mul<Output = T>
+        + ops::Add<Output = T>
+        + ops::Neg,
 {
+    #[inline(always)]
     pub fn det(&self) -> T {
         self[0][0]
+    }
+}
+
+impl<T, const N_ROW: usize, const N_COL: usize> ops::Index<usize> for Matrix<T, N_ROW, N_COL>
+where
+    T: Default + Debug + Copy + SimdElement,
+{
+    type Output = Vector<T, N_COL>;
+
+    #[inline(always)]
+    fn index(&self, index: usize) -> &Self::Output {
+        return &self.0[index];
+    }
+}
+
+impl<T, const N_ROW: usize, const N_COL: usize> ops::IndexMut<usize> for Matrix<T, N_ROW, N_COL>
+where
+    T: Default + Debug + Copy + SimdElement,
+{
+    #[inline(always)]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        return &mut self.0[index];
+    }
+}
+
+impl<T, const N_ROW: usize, const N_COL: usize> Matrix<T, N_ROW, N_COL>
+where
+    T: Default + Debug + Copy + SimdElement,
+{
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self([Vector::<T, N_COL>::new(); N_ROW])
+    }
+
+    #[inline(always)]
+    pub fn transpose(&self) -> Matrix<T, N_COL, N_ROW> {
+        let mut output = Matrix::<T, N_COL, N_ROW>::new();
+        for i in 0..N_COL {
+            output[i] = self.get_col(i)
+        }
+        output
+    }
+
+    #[inline(always)]
+    pub fn set_col(&mut self, j: usize, col: &Vector<T, N_ROW>) {
+        for i in 0..N_ROW {
+            self[i][j] = col[i]
+        }
+    }
+
+    #[inline(always)]
+    pub fn get_col(&self, j: usize) -> Vector<T, N_ROW> {
+        let mut col = Vector::new();
+        for i in 0..N_ROW {
+            col[i] = self[i][j]
+        }
+        col
     }
 }

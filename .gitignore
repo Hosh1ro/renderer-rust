@@ -5,3 +5,5 @@ Cargo.lock
 *.tga
 *.obj
 render-bin
+
+.DS_Store

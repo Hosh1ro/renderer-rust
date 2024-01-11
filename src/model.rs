@@ -7,15 +7,15 @@ use std::{
 };
 
 use crate::{
-    math::vector::{Vec2f64, Vec3f64},
+    math::vector::{Vec2f32, Vec3f32, Vec4f32},
     utils,
 };
 
 #[derive(Debug)]
 pub struct Model {
-    pub vertices: Vec<Vec3f64>,
-    pub texture_coordinates: Vec<Vec2f64>,
-    pub vertex_normals: Vec<Vec3f64>,
+    pub vertices: Vec<Vec4f32>,
+    pub texture_coordinates: Vec<Vec2f32>,
+    pub vertex_normals: Vec<Vec4f32>,
     pub face_vertex_indices: Vec<usize>,
     pub face_texture_coordinate_indices: Vec<usize>,
     pub face_vertex_normal_indices: Vec<usize>,
@@ -23,32 +23,35 @@ pub struct Model {
 
 impl Model {
     fn parse_vertex(&mut self, iter: &mut SplitAsciiWhitespace) -> utils::Result<()> {
-        let raw_data: Vec<f64> = iter
+        let raw_data: Vec<f32> = iter
             .map(FromStr::from_str)
-            .collect::<Result<Vec<f64>, _>>()?;
+            .collect::<Result<Vec<f32>, _>>()?;
 
         match raw_data.len() {
-            3 => {
-                self.vertices.push(Vec3f64::new_from_vec(&raw_data));
+            _ => {
+                self.vertices
+                    .push(Vec3f32::new_from_vec(&raw_data).embed(1f32));
                 Ok(())
             }
-            4 => {
-                self.vertices.push(Vec3f64::new_from_vec(&raw_data));
-                Ok(())
-            }
-            _ => Err("obj vertex parse fail".into()),
+            // 4 => {
+            //     let tmp_vector = Vec4f32::new_from_vec(&raw_data);
+            //     let tmp_vector = &tmp_vector / tmp_vector[3];
+            //     self.vertices.push(tmp_vector);
+            //     Ok(())
+            // }
+            // _ => Err("obj vertex parse fail".into()),
         }
     }
 
     fn parse_texture_coordinate(&mut self, iter: &mut SplitAsciiWhitespace) -> utils::Result<()> {
-        let raw_data: Vec<f64> = iter
+        let raw_data: Vec<f32> = iter
             .map(FromStr::from_str)
-            .collect::<Result<Vec<f64>, _>>()?;
+            .collect::<Result<Vec<f32>, _>>()?;
 
         match raw_data.len() {
             2 | 3 => {
-                let mut uv = Vec2f64::new_from_vec(&raw_data);
-                uv[1] = 1f64 - uv[1];
+                let mut uv = Vec2f32::new_from_vec(&raw_data);
+                uv[1] = 1f32 - uv[1];
                 self.texture_coordinates.push(uv);
                 Ok(())
             }
@@ -57,17 +60,14 @@ impl Model {
     }
 
     fn parse_vertex_normal(&mut self, iter: &mut SplitAsciiWhitespace) -> utils::Result<()> {
-        let raw_data: Vec<f64> = iter
+        let raw_data: Vec<f32> = iter
             .map(FromStr::from_str)
-            .collect::<Result<Vec<f64>, _>>()?;
+            .collect::<Result<Vec<f32>, _>>()?;
 
         match raw_data.len() {
             3 => {
-                self.vertex_normals.push(Vec3f64::new_from_vec(&raw_data));
-                Ok(())
-            }
-            4 => {
-                self.vertex_normals.push(Vec3f64::new_from_vec(&raw_data));
+                self.vertex_normals
+                    .push(Vec3f32::new_from_vec(&raw_data).embed(0f32));
                 Ok(())
             }
             _ => Err("obj vertex normal parse fail".into()),
@@ -157,15 +157,15 @@ impl Model {
         self.face_vertex_indices.len() / 3
     }
 
-    pub fn get_uv(&self, face_index: usize, nth_vertex: usize) -> Vec2f64 {
+    pub fn get_uv(&self, face_index: usize, nth_vertex: usize) -> Vec2f32 {
         self.texture_coordinates[self.face_texture_coordinate_indices[face_index * 3 + nth_vertex]]
     }
 
-    pub fn get_normal(&self, face_index: usize, nth_vertex: usize) -> Vec3f64 {
+    pub fn get_normal(&self, face_index: usize, nth_vertex: usize) -> Vec4f32 {
         self.vertex_normals[self.face_vertex_normal_indices[face_index * 3 + nth_vertex]]
     }
 
-    pub fn get_vertex(&self, face_index: usize, nth_vertex: usize) -> Vec3f64 {
+    pub fn get_vertex(&self, face_index: usize, nth_vertex: usize) -> Vec4f32 {
         self.vertices[self.face_vertex_indices[face_index * 3 + nth_vertex]]
     }
 }

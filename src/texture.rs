@@ -1,4 +1,4 @@
-use crate::{math::vector::Vec2f64, utils};
+use crate::{math::vector::Vec2f32, utils};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TextureColor {
@@ -74,10 +74,10 @@ impl Texture {
         }
     }
 
-    pub fn sample(&self, uv: &Vec2f64) -> TextureColor {
+    pub fn sample(&self, uv: &Vec2f32) -> TextureColor {
         self.get_color(
-            (uv[0] * (self.width as f64)) as u32,
-            (uv[1] * (self.height as f64)) as u32,
+            (uv[0] * (self.width as f32)) as u32,
+            (uv[1] * (self.height as f32)) as u32,
         )
         .unwrap()
     }
