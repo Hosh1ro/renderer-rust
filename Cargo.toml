@@ -12,3 +12,6 @@ path = "src/lib.rs"
 [[bin]]
 name = "render-bin"
 path = "src/main.rs"
+
+[profile.release]
+lto = true
